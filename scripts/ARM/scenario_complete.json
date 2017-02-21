@@ -105,7 +105,6 @@
     "mobileAppProject": "src/MobileAppService/MyDrivingService/MyDrivingService.csproj",
     /* App Insights settings */
     "appInsightsName": "[concat(variables('baseName'), 'API', '-', uniquestring(resourceGroup().id))]",
-    "appInsightsLocation": "centralus", /* App Insights is currently only available in Central US */
     /* Data Factory settings */
     "dataFactoryName": "[concat(variables('baseName'), '-df', uniquestring(resourceGroup().id))]",
     "mlScoringLinkedServiceName": "AzureMLScoringandUpdateLinkedService",
@@ -579,7 +578,7 @@
       "apiVersion": "2015-05-01",
       "type": "microsoft.insights/components",
       "name": "[variables('appInsightsName')]",
-      "location": "[variables('appInsightsLocation')]",
+      "location": "[resourceGroup().location]",
       "kind": "web",
       "properties": { "ApplicationId": "[variables('appInsightsName')]" },
       "dependsOn": [
