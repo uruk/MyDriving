@@ -12,14 +12,13 @@ namespace MyDriving.AzureClient
 {
     public class AzureClient : IAzureClient
     {
-        const string DefaultMobileServiceUrl = "https://mydriving.azurewebsites.net";
         static IMobileServiceClient client;
 
         public IMobileServiceClient Client => client ?? (client = CreateClient());
 
         IMobileServiceClient CreateClient()
         {
-            client = new MobileServiceClient(DefaultMobileServiceUrl, new AuthHandler())
+            client = new MobileServiceClient(Config.DefaultMobileServiceUrl, new AuthHandler())
             {
                 SerializerSettings = new MobileServiceJsonSerializerSettings()
                 {
