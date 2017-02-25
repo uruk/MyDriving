@@ -120,7 +120,7 @@ namespace MyDriving.ViewModel
         }
 
         public bool NeedSave { get; set; }
-        public IGeolocator Geolocator => CrossGeolocator.Current;
+        public IGeolocator Geolocator { get; } = new MockGeolocator();
         public IMedia Media => CrossMedia.Current;
 
         public TripSummaryViewModel TripSummary { get; set; }
