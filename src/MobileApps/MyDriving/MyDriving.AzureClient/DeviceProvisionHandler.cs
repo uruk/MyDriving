@@ -15,7 +15,6 @@ namespace MyDriving.AzureClient
 {
     public class DeviceProvisionHandler
     {
-        private const string DefaultHostName = "mydriving.azure-devices.net";
         private static DeviceProvisionHandler _handler;
 
         private DeviceProvisionHandler()
@@ -40,7 +39,7 @@ namespace MyDriving.AzureClient
 
             if (String.IsNullOrEmpty(HostName))
             {
-                HostName = DefaultHostName;
+                HostName = Config.DefaultHostName;
                 Settings.Current.HostName = HostName;
             }
         }
