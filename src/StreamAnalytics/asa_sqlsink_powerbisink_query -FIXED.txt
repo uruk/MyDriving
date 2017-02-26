@@ -1,0 +1,94 @@
+WITH TripPointRaw as 
+(
+SELECT
+    TripId,
+    UserId,
+    TripDataPoint.Lat as RawLat,
+    TripDataPoint.Lon as RawLong,
+    CAST(TripDataPoint.Speed as FLOAT) as spd,
+    CAST(TripDataPoint.EngineRPM as FLOAT) as enginerpm,
+    CAST(TripDataPoint.EngineLoad as FLOAT) as engineLoad,
+    CAST(TripDataPoint.ShortTermFuelBank1 as FLOAT) as shortTermFuelBank,
+    CAST(TripDataPoint.LongTermFuelBank1 as FLOAT) as longTermFuelBank,
+    CAST(TripDataPoint.MAFFlowRate as FLOAT) as flowRate,
+    CAST(TripDataPoint.ThrottlePosition as FLOAT) as throttlePos,
+    CAST(TripDataPoint.Runtime as FLOAT) as runtime,
+    CAST(TripDataPoint.DistanceWithMIL as FLOAT) as distanceWithMIL,
+    CAST(TripDataPoint.RelativeThrottlePosition as FLOAT) as relativeThrottlePos,
+    CAST(TripDataPoint.OutsideTemperature as FLOAT) as outsideTemperature,
+    CAST(TripDataPoint.EngineFuelRate as FLOAT) as engineFuelRate,
+    TripDataPoint.RecordedTimeStamp as actualTS,
+    DATEADD(millisecond,- DATEPART(millisecond,TripDataPoint.RecordedTimeStamp),DATEADD(second, 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),TripDataPoint.RecordedTimeStamp)) as ts,
+    DATEDIFF(millisecond, TripDataPoint.RecordedTimeStamp, DATEADD(millisecond,-DATEPART(millisecond,TripDataPoint.RecordedTimeStamp),DATEADD(second, 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),TripDataPoint.RecordedTimeStamp))) as tsDiff,
+    TripDataPoint.VIN as vin,
+    TripDataPoint.RelativeThrottlePosition as throttle
+FROM
+    CarDeviceData TIMESTAMP by TripDataPoint.RecordedTimeStamp
+WHERE
+    TripId is not null
+    and TripId != ''
+    and UserId is not null
+    and UserId != ''
+    and CAST(TripDataPoint.Speed as FLOAT) > 0
+),
+TripPointAgg as 
+(
+SELECT 
+    TripId,
+    UserId,
+    vin,
+    DATETIMEFROMPARTS(DATEPART(year,ts),DATEPART(month,ts),DATEPART(day,ts),DATEPART(hour,ts),DATEPART(minute,ts),DATEPART(second,ts),00) as tske,
+    AVG(RawLat) as lat,
+    AVG(RawLong) as lon,
+    MIN(tsDiff) as lastRecTime,
+    MAX(tsDiff) as firstRecTime,
+    MIN(spd) as minSpeed,
+    MAX(spd) as maxSpeed,
+    AVG(spd) as avgSpeed,
+    AVG(engineLoad) as avgEngineLoad,
+    AVG(shortTermFuelBank) as avgShortTermFuelBank,
+    AVG(longTermFuelBank) as avgLongTermFuelBank,
+    MAX(enginerpm) as maxEngineRpm,
+    AVG(flowRate) as avgFlowRate,
+    AVG(throttlePos) as avgThrottlePos,
+    MAX(runtime) as maxRuntime,
+    MAX(distanceWithMIL) as maxDistanceWithMIL,
+    AVG(relativeThrottlePos) as avgRelativeThrottlePos,
+    AVG(outsideTemperature) as avgOutsideTemperature,
+    AVG(engineFuelRate) as avgEngineFuelRate
+FROM
+    TripPointRaw
+WHERE
+    ts is not null
+
+GROUP BY
+    TripId,
+    UserId,
+    vin,
+    DATETIMEFROMPARTS(DATEPART(year,ts),DATEPART(month,ts),DATEPART(day,ts),DATEPART(hour,ts),DATEPART(minute,ts),DATEPART(second,ts),00),
+    TumblingWindow(second,5) 
+
+)
+
+SELECT
+    rawlat,
+    rawlong,
+    spd,
+    ts,
+    tsDiff
+INTO SqlSink
+FROM TripPointRaw
+
+
+
+SELECT
+    
+    tske,
+    lat,
+    lon,
+    lastRecTime,
+    firstRecTime,
+    minSpeed,
+    maxSpeed
+INTO powerbisink
+FROM TripPointAgg
