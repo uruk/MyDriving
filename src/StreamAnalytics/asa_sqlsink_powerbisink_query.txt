@@ -18,8 +18,16 @@ SELECT
     CAST(TripDataPoint.OutsideTemperature as FLOAT) as outsideTemperature,
     CAST(TripDataPoint.EngineFuelRate as FLOAT) as engineFuelRate,
     TripDataPoint.RecordedTimeStamp as actualTS,
-    DATEADD(millisecond,- DATEPART(millisecond,TripDataPoint.RecordedTimeStamp),DATEADD(second, 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),TripDataPoint.RecordedTimeStamp)) as ts,
-    DATEDIFF(millisecond, TripDataPoint.RecordedTimeStamp, DATEADD(millisecond,-DATEPART(millisecond,TripDataPoint.RecordedTimeStamp),DATEADD(second, 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),TripDataPoint.RecordedTimeStamp))) as tsDiff,
+    DATETIMEFROMPARTS(
+        DATEPART(year,TripDataPoint.RecordedTimeStamp), DATEPART(month,TripDataPoint.RecordedTimeStamp),
+        DATEPART(day,TripDataPoint.RecordedTimeStamp), DATEPART(hour,TripDataPoint.RecordedTimeStamp), DATEPART(minute,TripDataPoint.RecordedTimeStamp),
+        DATEPART(second,TripDataPoint.RecordedTimeStamp) - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT), 0) as ts,
+    DATEDIFF(millisecond,
+        DATETIMEFROMPARTS(
+            DATEPART(year,TripDataPoint.RecordedTimeStamp), DATEPART(month,TripDataPoint.RecordedTimeStamp),
+            DATEPART(day,TripDataPoint.RecordedTimeStamp), DATEPART(hour,TripDataPoint.RecordedTimeStamp), DATEPART(minute,TripDataPoint.RecordedTimeStamp),
+            DATEPART(second,TripDataPoint.RecordedTimeStamp) - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT), 0),
+        TripDataPoint.RecordedTimeStamp) as tsDiff,
     TripDataPoint.VIN as vin,
     TripDataPoint.RelativeThrottlePosition as throttle
 FROM
@@ -29,7 +37,9 @@ WHERE
     and TripId != ''
     and UserId is not null
     and UserId != ''
+    and CAST(TripDataPoint.Speed as FLOAT) > 0
 ),
+
 TripPointAgg as 
 (
 SELECT 
@@ -39,8 +49,8 @@ SELECT
     ts,
     AVG(RawLat) as lat,
     AVG(RawLong) as lon,
-    MIN(tsDiff) as lastRecTime,
-    MAX(tsDiff) as firstRecTime,
+    MAX(tsDiff) as lastRecTime,
+    MIN(tsDiff) as firstRecTime,
     MIN(spd) as minSpeed,
     MAX(spd) as maxSpeed,
     AVG(spd) as avgSpeed,
@@ -66,6 +76,7 @@ GROUP BY
     ts,
     TumblingWindow(second,5)    
 ),
+
 RoughDrivingStats as 
 (
 SELECT
@@ -74,10 +85,12 @@ SELECT
     t1.lat,
     t1.lon,
     CASE
-        WHEN t3.spd - t2.spd > 50 THEN 2
-        WHEN t2.spd - t3.spd > 60 OR t1.maxSpeed - t1.minSpeed > 70 OR t1.maxSpeed - t1.avgSpeed > t1.avgSpeed - t1.minSpeed + 0.10*(t1.maxSpeed - t1.minSpeed) THEN 1
+        WHEN t3.spd - t2.spd > 20 THEN 2
+        WHEN t2.spd - t3.spd > 20 THEN 1
         ELSE 0
     END as POIType,
+    t3.spd as firstSpeed,
+    t2.spd as lastSpeed,
     t1.ts,
     t1.avgSpeed,
     t1.minSpeed,
@@ -92,9 +105,7 @@ SELECT
     t1.maxDistanceWithMIL,
     t1.avgRelativeThrottlePos,
     t1.avgOutsideTemperature,
-    t1.avgEngineFuelRate,
-    t3.spd as firstSpeed,
-    t2.spd as lastSpeed
+    t1.avgEngineFuelRate
 FROM TripPointAgg t1
 JOIN TripPointRaw t2
 ON t1.TripId = t2.TripId and 
@@ -115,11 +126,10 @@ SELECT
     lat as Latitude,
     lon as Longitude,
     POIType,
-    ts as RecordedTimeStamp
+    ts as Timestamp
 INTO SQLSink
 FROM RoughDrivingStats
 WHERE POIType > 0
-
 
 SELECT
     TripId,
