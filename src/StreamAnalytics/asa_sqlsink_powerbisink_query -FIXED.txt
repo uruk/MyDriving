@@ -18,7 +18,7 @@ SELECT
     CAST(TripDataPoint.OutsideTemperature as FLOAT) as outsideTemperature,
     CAST(TripDataPoint.EngineFuelRate as FLOAT) as engineFuelRate,
     TripDataPoint.RecordedTimeStamp as actualTS,
-    DATEADD(millisecond,- DATEPART(millisecond,TripDataPoint.RecordedTimeStamp),DATEADD(second, 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),TripDataPoint.RecordedTimeStamp)) as ts,
+    DATETIMEFROMPARTS(DATEPART(year,TripDataPoint.RecordedTimeStamp),DATEPART(month,TripDataPoint.RecordedTimeStamp),DATEPART(day,TripDataPoint.RecordedTimeStamp),DATEPART(hour,TripDataPoint.RecordedTimeStamp),DATEPART(minute,TripDataPoint.RecordedTimeStamp),DATEPART(second,TripDataPoint.RecordedTimeStamp) + 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),00) as ts,
     DATEDIFF(millisecond, TripDataPoint.RecordedTimeStamp, DATEADD(millisecond,-DATEPART(millisecond,TripDataPoint.RecordedTimeStamp),DATEADD(second, 5 - CAST(CEILING(DATEPART(second, TripDataPoint.RecordedTimeStamp)%5) as BIGINT),TripDataPoint.RecordedTimeStamp))) as tsDiff,
     TripDataPoint.VIN as vin,
     TripDataPoint.RelativeThrottlePosition as throttle
@@ -37,7 +37,7 @@ SELECT
     TripId,
     UserId,
     vin,
-    DATETIMEFROMPARTS(DATEPART(year,ts),DATEPART(month,ts),DATEPART(day,ts),DATEPART(hour,ts),DATEPART(minute,ts),DATEPART(second,ts),00) as tske,
+    ts,
     AVG(RawLat) as lat,
     AVG(RawLong) as lon,
     MIN(tsDiff) as lastRecTime,
@@ -65,7 +65,7 @@ GROUP BY
     TripId,
     UserId,
     vin,
-    DATETIMEFROMPARTS(DATEPART(year,ts),DATEPART(month,ts),DATEPART(day,ts),DATEPART(hour,ts),DATEPART(minute,ts),DATEPART(second,ts),00),
+    ts,
     TumblingWindow(second,5) 
 
 )
@@ -74,6 +74,7 @@ SELECT
     rawlat,
     rawlong,
     spd,
+    actualTS,
     ts,
     tsDiff
 INTO SqlSink
@@ -83,7 +84,7 @@ FROM TripPointRaw
 
 SELECT
     
-    tske,
+    ts,
     lat,
     lon,
     lastRecTime,
