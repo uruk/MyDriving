@@ -11,6 +11,8 @@ namespace MyDriving.DataStore.Azure.Stores
 {
     public class POIStore : BaseStore<POI>, IPOIStore
     {
+        public override string Identifier => "POI";
+
         public async Task<IEnumerable<POI>> GetItemsAsync(string tripId)
         {
             //Always force refresh
