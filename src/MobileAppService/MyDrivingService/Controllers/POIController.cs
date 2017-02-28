@@ -22,9 +22,9 @@ namespace MyDrivingService.Controllers
         }
        
         [Authorize]
-        public IQueryable<POI> GetAllPOIs(string tripId)
+        public IQueryable<POI> GetAllPOIs()
         {
-            return Query().Where(p => p.TripId == tripId);
+            return Query();
         }
     }
 }
